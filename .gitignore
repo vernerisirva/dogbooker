@@ -1,0 +1,22 @@
+node_modules/
+.next/
+.vercel/
+.env*
+!.env.example
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.local/
+.DS_Store
+
+src/app/.well-known/workflow/
+.workflow-data/
+/.swc
+
+# Never publish local database backups, credentials or scanner reports.
+*.dump
+*.backup
+*.pem
+*.key
+*.log

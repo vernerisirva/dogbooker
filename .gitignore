@@ -20,3 +20,6 @@ src/app/.well-known/workflow/
 *.pem
 *.key
 *.log
+
+# Also ignore a linked local dependency directory.
+/node_modules

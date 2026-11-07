@@ -12,6 +12,8 @@ export default defineConfig([
   },
   globalIgnores([
     ".next/**",
+    "marketplace/.next/**",
+    "marketplace/next-env.d.ts",
     "src/app/.well-known/workflow/**",
     ".workflow-data/**",
     ".local/**",

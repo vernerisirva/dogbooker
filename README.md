@@ -1,5 +1,7 @@
 # DogBooker
 
+An isolated, local-only [marketplace prototype](marketplace/README.md) is available on this feature branch. It has its own app, authentication and database; the standalone installation below remains independent.
+
 A small, self-hosted dog-sitting calendar with a Swedish interface. Invite owners, accept booking requests, and coordinate drop-off and pickup times. Each installation has its own administrator, database, accounts and email credentials.
 
 ![Swedish booking calendar with synthetic sample data](docs/screenshots/calendar.png)

@@ -1,5 +1,7 @@
 # DogBooker marketplace independent acceptance review
 
+**Remediation note, 8 November 2026:** findings 1 and 2 have implementation fixes and passing regression evidence in [MARKETPLACE_BLOCKER_RESOLUTION.md](MARKETPLACE_BLOCKER_RESOLUTION.md). The original verdict and findings below are retained unchanged in substance; a new independent re-review has not yet occurred.
+
 **Verdict: FAIL — fix findings 1 and 2 before merge acceptance.** The normal local prototype flows work, and both previously unverified concurrency scenarios now have passing controlled tests. However, the claimed local-only connection boundary can be bypassed by connection-string options, and capacity protection depends on an isolation level the application does not enforce. These are configuration-dependent failures, not evidence of overbooking or cross-tenant disclosure in the tested default configuration.
 
 Reviewed 7 November 2026, Europe/Helsinki. Target: `codex/marketplace-foundation`, commit `bb34e1a9cd10a60eb9ef4d4889367d00644c2365`; implementation `cb93f5c`; sanitized public base `7b9dadb`. Review checkout: `.local/marketplace-foundation` under the original workspace. The original workspace is the private application and was not used as a test target.

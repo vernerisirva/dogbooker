@@ -2,7 +2,7 @@
 
 A separate Swedish boarding marketplace app. Owners register synthetic accounts, manage several dogs, compare explained matches and request a stay. Sitters maintain profiles and open dates, then approve, decline or cancel requests in their private agenda. Pending requests reserve capacity immediately. No payments or email are sent.
 
-This app is based on the public MIT release and shares its locked dependencies and two pure helpers. It does not use the standalone app's database, cookies or environment. Do not deploy this prototype or point it at an existing database. Runtime configuration intentionally accepts only `127.0.0.1:55438/dogbooker_marketplace` and the dedicated restricted roles.
+This app is based on the public MIT release and shares its locked dependencies and a few pure helpers. It does not use the standalone app's database, cookies or database URLs. Do not deploy this prototype or point it at an existing database. Runtime configuration intentionally accepts only `127.0.0.1:55438/dogbooker_marketplace` and the dedicated restricted roles.
 
 ## Install
 
@@ -22,6 +22,10 @@ npm run dev
 ```
 
 Open [the local marketplace](http://127.0.0.1:3100). Use exactly this origin, not `localhost`. Generated credentials are in `.env.local` (mode 0600). Setup refuses to replace existing credentials or a database. Migration and seed tools use only the fixed local Unix socket. Seed refuses any existing accounts and never resets data.
+
+Database URLs must use `postgres://` or `postgresql://`, include credentials, and contain no query parameters, fragments or raw whitespace. Percent-encoded credentials are supported. `MARKETPLACE_DATABASE_URL` must name `marketplace_app`; `MARKETPLACE_AUTH_DATABASE_URL` must name `marketplace_auth`. The effective server identity and restricted role privileges are checked before application queries. Generic database URLs are ignored. Run local commands without nonempty `PG*` or `NODE_PG_FORCE_NATIVE` environment variables, including `PGOPTIONS` and `PGPASSFILE`; these overrides fail closed. Local production builds (`NODE_ENV=production`) and CI use the same restrictions.
+
+For an existing demo, run `npm run db:migrate` before restarting the app. Migration 0006 is additive and preserves profile, availability, booking and care data; do not edit previously applied migration files.
 
 Demo logins and one randomly generated password are saved in `.local/demo-accounts.json` (mode 0600):
 
@@ -51,7 +55,7 @@ npm run build
 npm run test:e2e
 ```
 
-Browser tests use installed Chrome locally and Playwright Chromium in CI. `npx playwright install chromium` from the root installs the CI browser. Database tests create synthetic fixtures in the dedicated database; the migration test creates and removes its own randomly named local database. Do not run suites concurrently with manual demo sessions. The GitHub marketplace workflow reproduces setup/checks without deployment; it still needs its first hosted CI run.
+Browser tests use installed Chrome locally and Playwright Chromium in CI. `npx playwright install chromium` from the root installs the CI browser. They validate local configuration and always start their own server; port 3100 must be free. Database tests create synthetic fixtures in the dedicated database; migration/concurrency tests create and remove randomly named local databases. Do not run suites concurrently with manual demo sessions. The GitHub marketplace workflow reproduces setup/checks without deployment; it still needs its first hosted CI run. [Blocker fixes and exact verification evidence](../MARKETPLACE_BLOCKER_RESOLUTION.md) cover connection attacks, mixed-isolation races and bounded transaction retries.
 
 For the original app's browser suite use `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e` at the root when using installed Chrome. Its tests require an independently prepared standalone test database and its own `.env.local`; never reuse private configuration. See the root installation instructions.
 

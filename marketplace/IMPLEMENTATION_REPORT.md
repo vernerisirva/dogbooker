@@ -1,5 +1,36 @@
 # Marketplace implementation and verification
 
+## Blocker remediation — 8 November 2026
+
+Both release blockers from the [independent acceptance review](../MARKETPLACE_ACCEPTANCE_REVIEW.md) are fixed and prepared for independent re-review. The historical FAIL is retained as review evidence; this implementation report does not claim a new independent verdict. Implementation/test fix commit: `b13126d`. The work remains on `codex/marketplace-foundation`, based on sanitized public release `7b9dadb`.
+
+- **Connections:** validate once and give `pg` explicit options; reject query/fragment/environment overrides, enforce pool-specific local identities, check connected server/role privileges, constrain administrator tools, and harden standalone synthetic-test/browser configuration. Invalid configuration errors contain no URL/credentials. Port zero is rejected because the driver otherwise substitutes its default port.
+- **Concurrency:** additive migration 0006 creates a new sitter MVCC row version on booking/status and schedule changes. Old Repeatable Read/Serializable snapshots abort rather than missing a committed booking. Application transactions explicitly use Read Committed and retry only PostgreSQL-aborted serialization/deadlock transactions, up to three complete attempts. Rollback failures discard the connection.
+- **Preservation:** existing SQL migrations, matching, Swedish UI, auth policy and standalone domain services are unchanged. Migration tests preserve sitter/availability/booking/care data and per-day occupancy. All original acceptance assertions remain intact.
+
+Final clean-install validation uses Node **22.23.4**, PostgreSQL **16.14**, Playwright Chromium **156.0.8078.4**, only synthetic local accounts/databases, and the unchanged dependency lockfile.
+
+| Check | Result |
+| --- | --- |
+| Standalone unit / integration / browser | **150 / 93 / 13 passed** |
+| Marketplace unit / integration / browser | **63 / 58 / 4 passed** |
+| Total | **381 passed, 0 failed, 0 skipped** |
+| Original six failing acceptance regressions | **6/6 passed**, original assertions retained |
+| Both applications: lint, TypeScript, production build | Passed |
+| Both migration runners, each invoked twice | Passed; reruns are no-ops |
+| Fresh `npm ci` | 813 packages installed; 814 installed entries audited; zero vulnerabilities |
+| Lockfile dependency audit / license inventory | Zero vulnerabilities; 965 entries; inventory unchanged |
+| Secret scan | Gitleaks: publishable source and full feature history passed |
+| Hosted CI | Not run; branch remains unpublished |
+
+The 27 controlled acceptance concurrency cases include both booking/capacity commit orders at Read Committed, Repeatable Read and Serializable; concurrent reductions/approvals; all five original stale-snapshot combinations; schedule changes; cancellation commit/rollback; and the two previously unverified profile/midnight scenarios. Ten transaction integration cases cover explicit isolation, actual deadlock recovery, full callback rollback/retry, retry exhaustion, non-retryable errors, disconnected-client disposal and runtime role verification. No sleep chooses the ordering of those concurrency cases.
+
+See [blocker resolution evidence](../MARKETPLACE_BLOCKER_RESOLUTION.md) for exact commands, trust boundaries, remaining risks and the hosted CI gate, and [ADR 003](docs/adr-003-connection-and-snapshot-boundaries.md) for the concurrency/configuration design. The inherited sub-millisecond standalone cancellation-boundary issue remains tracked as P3; all current suite runs pass. This is ready for independent re-review, **not production deployment**. No push, PR, merge, deployment or private production access occurred.
+
+## Historical implementation evidence — 7 November 2026
+
+The following records the original implementation before the later acceptance review and remediation. Its test counts and outstanding verification gaps are historical; use the dated evidence above for the current candidate.
+
 Completed 7 November 2026 on `codex/marketplace-foundation`, based on public v1.0.0 commit `7b9dadb`. Application/test implementation: `cb93f5c`. Documentation is committed separately.
 
 ## Working result

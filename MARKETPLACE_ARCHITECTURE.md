@@ -1,12 +1,12 @@
 # Marketplace architecture
 
-Status: local functional prototype, 7 November 2026. No production rollout. Feature branch `codex/marketplace-foundation` is based on the sanitized public release `7b9dadb`, not the private installation's history.
+Status: local functional prototype, 8 November 2026. No production rollout. Feature branch `codex/marketplace-foundation` is based on the sanitized public release `7b9dadb`, not the private installation's history.
 
 ## Decision: separate application and database
 
 The single-sitter app's identity is owner-account-as-dog; its administrator intentionally sees every booking and its singleton windows/availability are global. Retrofitting tenant IDs would require auditing all booking, reminder, invitation, notification and shared-calendar queries and would create a dangerous partial-migration state.
 
-`marketplace/` is a separate Next.js application and local PostgreSQL database. It shares only locked npm dependencies, the pure Stockholm date helper and hydration hook. The standalone `src/`, SQL migrations, routes and services are unchanged. Root TypeScript excludes the new app; ESLint ignores its generated files. Separate auth cookies and origins prevent accidental session reuse.
+`marketplace/` is a separate Next.js application and local PostgreSQL database. It shares locked npm dependencies, the pure Stockholm date helper, hydration hook and local PostgreSQL configuration validator. Standalone routes, domain services and SQL migrations are unchanged; its synthetic-test connection and browser tooling now reject unsafe configuration. Ordinary self-hosted database configuration remains supported outside synthetic-test mode. Root TypeScript excludes the new app; ESLint ignores its generated files. Separate auth cookies and origins prevent accidental session reuse.
 
 Trade-off: duplicated auth configuration and UI styling, and SQL/TypeScript validation that needs parity tests. This is smaller and safer than a tenant retrofit or premature shared domain package. A later standalone-to-marketplace import needs consent, dog mapping and new account activation; no automatic import is provided. See [ADR 001](marketplace/docs/adr-001-separate-application.md).
 
@@ -39,6 +39,8 @@ The domain role `marketplace_app` is neither owner, superuser nor BYPASSRLS and 
 
 Writes use explicitly granted `SECURITY DEFINER` functions, owned by the local migration administrator. Their fixed `search_path`, bound arguments, actor checks and restricted grants are part of the security boundary. Table-owner bypass is intentional inside these functions; RLS is not claimed to sandbox the migration administrator or a compromised application holding both credentials. Production requires separate protected migration credentials, audited operator access, secret rotation and independent database-role review. Do not enable ordinary owner/admin credentials for runtime.
 
+Both runtime pools construct explicit driver options from validated PostgreSQL URLs. They accept only `127.0.0.1:55438/dogbooker_marketplace`, each pool's named role and explicit credentials; query parameters, fragments and nonempty `PG*`/`NODE_PG_FORCE_NATIVE` overrides are rejected. Neither generic `DATABASE_URL` nor migration URLs are fallback sources. An awaited connection hook verifies the actual database, server address/port, login/current role and restricted privileges before lending a new connection. Setup/migration/test administration uses a fixed Unix socket and an allowlist of local database identities. Errors never echo the supplied URL. The OS, dedicated local cluster administrator and application process are trusted; these checks do not authenticate a server against a malicious local administrator or sandbox arbitrary code execution.
+
 Search has no owner identifiers, email, private notes, booking IDs or exact home addresses. Coarse points are stored with two decimal places; distance is approximate straight-line distance. Care snapshots are shared with the chosen sitter when a request is submitted, as explained in the UI. Sitter care access ends on decline/cancellation or after the final Stockholm date; owners retain their snapshots. Search never reads the notes for scoring. Owners should not put human medical or contact information in notes. Retention/deletion is a launch gate.
 
 ## Reservation rules
@@ -51,6 +53,8 @@ Search has no owner identifiers, email, private notes, booking IDs or exact home
 - Date validity is checked before work, after row locks and after potentially waiting exclusion inserts, using the database clock in Stockholm. Cancellation/decision validates revision after locks. A race yields one legal state, not duplicate capacity.
 - Request UUIDs are unique per owner; identical normalized payloads return the same booking, changed payloads conflict. Quoted daily price is checked and total calculated in SQL. Profile edits do not rewrite existing price or care snapshots.
 - Sitter profile writes serialize even during first creation. Capacity, resident-dog, size and care-capability changes are blocked while future active commitments exist. Closing dates with active bookings is rejected. Published profiles belonging to inactive accounts cannot receive new requests.
+
+Migration 0006 adds a shared MVCC write boundary: booking inserts/status changes/deletes and availability changes write a new version of the same sitter row that profile changes lock. A row lock alone did not invalidate old Repeatable Read snapshots. Now a stale Repeatable Read/Serializable writer aborts with `40001`, even when the intervening booking used Read Committed. Runtime transactions explicitly select Read Committed and retry the entire database-only callback at most three times for `40001` or `40P01`, only after rollback. They never retry business conflicts or uncertain connection/commit failures; a failed rollback discards the connection. Existing exclusions and function-level checks remain required. See [ADR 003](marketplace/docs/adr-003-connection-and-snapshot-boundaries.md) and the [remediation evidence](MARKETPLACE_BLOCKER_RESOLUTION.md).
 
 ## API contract
 

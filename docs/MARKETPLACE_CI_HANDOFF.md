@@ -1,6 +1,14 @@
 # Marketplace publication and CI handoff
 
-Prepared 8 November 2026. **Publication is not authorized.** The accepted local verdict is [PASS WITH NOTES](../MARKETPLACE_ACCEPTANCE_REREVIEW.md). The P3 cancellation issue remains open in an [unpublished draft](issue-drafts/cancellation-timestamp-precision.md). Do not push, create an issue/PR, merge or deploy until the corresponding explicit authorization is given.
+Prepared 8 November 2026; publication checkpoint updated after explicit authorization. The reviewed branch was pushed and [draft PR #8](https://github.com/vernerisirva/dogbooker/pull/8) opened. The accepted local verdict remains [PASS WITH NOTES](../MARKETPLACE_ACCEPTANCE_REREVIEW.md). The P3 cancellation issue remains open in an [unpublished draft](issue-drafts/cancellation-timestamp-precision.md). Merge, deployment, issue publication and live external review remain unauthorized. The proposed-command sections below preserve the original pre-publication handoff; publication authorization has now been exercised.
+
+## First hosted execution and correction
+
+All three workflows executed on `c53a3d78c0fbaf077d5885396616c20606674c5b`. [Secret scan passed](https://github.com/vernerisirva/dogbooker/actions/runs/42503810291). [Standalone CI failed](https://github.com/vernerisirva/dogbooker/actions/runs/42503810251) before integration fixtures: a Docker-forwarded connection reaches a non-loopback server-side address, which the hardened identity guard rejects. The workflow now provisions PostgreSQL 16 directly on the ephemeral runner, binds only loopback on port 55438, and creates a dedicated synthetic database owned by a non-superuser login. The guard is unchanged.
+
+[Marketplace CI failed](https://github.com/vernerisirva/dogbooker/actions/runs/42503810324) despite 76 unit and 69 integration assertions passing: forced teardown emitted two unhandled `57P01` connection-termination errors in the independent boundary fixture. The installed `pg-pool` removes clients before their asynchronous disconnect finishes, so `pool.end()` can resolve before the backend closes. Both acceptance fixtures now use ordinary `DROP DATABASE` after ending their pools; PostgreSQL waits for disconnects instead of forcibly terminating them. No error handler hides unexpected failures, and no assertion or application behavior changes.
+
+Local correction validation: all 69 marketplace integration tests and 93 standalone integration tests passed on Node 22 with isolated synthetic databases. Marketplace lint/type checks, changed-file formatting, shell syntax and whitespace checks passed. The unchanged first-run P3 failure remains recorded in the acceptance review. Initial hosted build/browser steps were skipped and are not counted as successes. The correction requires fresh successful hosted checks on its exact commit before merge readiness can be established.
 
 ## Three workflows and exact check names
 

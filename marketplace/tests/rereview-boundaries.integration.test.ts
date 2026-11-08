@@ -34,7 +34,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await runtime.end();
   await db.end();
-  if (created) await control.query(`DROP DATABASE ${name} WITH (FORCE)`);
+  // pool.end() can resolve before backend disconnects; let DROP wait for them.
+  if (created) await control.query(`DROP DATABASE ${name}`);
   await control.end();
 });
 

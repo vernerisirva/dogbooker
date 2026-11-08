@@ -8,18 +8,6 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: dogbooker
-          POSTGRES_PASSWORD: ci-only-password
-          POSTGRES_DB: dogbooker_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U dogbooker -d dogbooker_test"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,14 +15,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Start isolated loopback PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16 postgresql-contrib
+          PG_BIN=/usr/lib/postgresql/16/bin
+          mkdir -p /tmp/dogbooker-standalone-pg
+          "$PG_BIN/initdb" -D /tmp/dogbooker-standalone-pg/data --auth-local=trust --auth-host=scram-sha-256 --encoding=UTF8 --no-locale
+          "$PG_BIN/pg_ctl" -D /tmp/dogbooker-standalone-pg/data -l /tmp/dogbooker-standalone-pg/server.log -o '-h 127.0.0.1 -p 55438 -k /tmp/dogbooker-standalone-pg' start
+          "$PG_BIN/psql" -h /tmp/dogbooker-standalone-pg -p 55438 -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE dogbooker LOGIN PASSWORD 'ci-only-password';
+          CREATE DATABASE dogbooker_test OWNER dogbooker;
+          SQL
       - name: Create isolated test configuration
         run: |
           npm run setup
           node --input-type=module <<'JS'
           import { readFileSync, writeFileSync } from 'node:fs';
           let env = readFileSync('.env.local', 'utf8');
-          env = env.replace(/^DATABASE_URL=.*$/m, 'DATABASE_URL=postgresql://dogbooker:ci-only-password@127.0.0.1:5432/dogbooker_test');
-          env = env.replace(/^DATABASE_URL_UNPOOLED=.*$/m, 'DATABASE_URL_UNPOOLED=postgresql://dogbooker:ci-only-password@127.0.0.1:5432/dogbooker_test');
+          env = env.replace(/^DATABASE_URL=.*$/m, 'DATABASE_URL=postgresql://dogbooker:ci-only-password@127.0.0.1:55438/dogbooker_test');
+          env = env.replace(/^DATABASE_URL_UNPOOLED=.*$/m, 'DATABASE_URL_UNPOOLED=postgresql://dogbooker:ci-only-password@127.0.0.1:55438/dogbooker_test');
           env = env.replace('ALLOW_TEST_DATABASE=false', 'ALLOW_TEST_DATABASE=true');
           writeFileSync('.env.local', env, { mode: 0o600 });
           JS

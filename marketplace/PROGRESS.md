@@ -1,11 +1,13 @@
 # Marketplace progress
 
+Historical implementation checkpoint. For final review, hosted checks and the completed external review, see [final review closure](../docs/MARKETPLACE_FINAL_REVIEW.md). Earlier verification counts and authorization statements below describe that checkpoint.
+
 Updated 8 November 2026. Branch: `codex/marketplace-foundation`. Sanitized public release base: `7b9dadb`. Original implementation: `cb93f5c`; reviewed target: `bb34e1a`; original acceptance report/regressions preserved in `13482eb`; tested blocker fixes in `b13126d`.
 
 ## Location and boundaries
 
-Worktree: `/Users/vernerisirva1/Documents/ChatGPT/DogBooker/.local/marketplace-foundation`.
-Public source checkout: `/Users/vernerisirva1/Documents/ChatGPT/DogBooker/.local/public-release/dogbooker`.
+Use the public-source feature checkout on `codex/marketplace-foundation`.
+Keep private installations and their configuration outside this checkout.
 
 Use this public-history worktree, never the original private installation or the ignored initial private-workspace draft. No production resources, credentials or deployment were used. Both synthetic test databases live in the dedicated local cluster at `/tmp/dogbooker-marketplace-pg`, port 55438. Runtime accepts only its dedicated database and restricted roles.
 
@@ -47,4 +49,4 @@ The inherited P3 standalone cancellation cutoff loses sub-millisecond precision;
 
 ## Cleanup
 
-After verification, temporary acceptance/migration databases and test clients are gone, preview servers are closed, and the retained synthetic cluster is stopped. Private main remains `5142775`; public main remains `7b9dadb`. No push, PR, merge or deployment performed.
+After verification, temporary acceptance/migration databases and test clients are gone, preview servers are closed, and the retained synthetic cluster is stopped. The private checkout was unchanged; public main remained `7b9dadb`. No push, PR, merge or deployment performed.

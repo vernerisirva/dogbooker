@@ -2,6 +2,8 @@
 
 Updated 8 November 2026. Independent acceptance: **PASS WITH NOTES**. This is a local marketplace foundation, not a production release.
 
+**Closure update:** the single authorized external review completed and its four defect claims were independently adjudicated. All three checks passed on `5980e2bf41001816a0018dcc8cf98da3cb78ca76`. See [final review closure](../../docs/MARKETPLACE_FINAL_REVIEW.md). The historical publication/review preparation record below is retained; its statements that review is pending describe the earlier checkpoint. Merge, further publication and production deployment still require their own authorization.
+
 ## Published state
 
 - Repository: [vernerisirva/dogbooker](https://github.com/vernerisirva/dogbooker).

@@ -1,0 +1,9 @@
+[Unit]
+Description=Expire DogBooker marketplace booking holds
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/dogbooker/marketplace
+ExecStart=/usr/bin/env npm run holds:expire
+TimeoutStartSec=360
+NoNewPrivileges=true

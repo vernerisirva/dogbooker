@@ -1,5 +1,21 @@
 # Marketplace progress
 
+## Current checkpoint — expiring holds, 8 November 2026
+
+Branch `codex/marketplace-expiring-holds`, isolated public-history worktree based on requested merge `59c34186aab646020e40502227e87a9104af6a0c`. Implementation/test commit: `72414b59fafefe46fa1a094718ab18f6c5bf341c`.
+
+- Implemented stored pending deadlines, terminal expired state, trigger-enforced atomic release, request-time reconciliation and a bounded actor-free one-shot worker with systemd/cron guidance.
+- Preserved sitter MVCC fence, active-only exclusions, restricted connections/roles, RLS and bounded whole-transaction retries. Confirmed bookings never auto-expire.
+- New holds default to 48 elapsed hours capped at Stockholm stay-start midnight; same-day requests are rejected. Legacy pending rows all receive a fresh full 48-hour migration grace, with a separate start-of-stay approval cutoff. No booking/history deletion.
+- Swedish pending/expired states, deadlines, explanation and stale-decision refresh are complete. The independent actual-clock test verifies privacy before worker cleanup.
+- **458 tests passed, none failed/skipped in final runs:** standalone 150 unit / 93 integration / 13 browser; marketplace 89 unit / 108 integration / 5 browser. Both builds, lint, TypeScript, migration reruns, worker smoke, unchanged 965-entry license inventory, zero-vulnerability audit, and secret scans pass.
+- Independent local review: **PASS WITH NOTES**, with the initial migration-grace finding resolved and provenance preserved in [the review](docs/EXPIRING_HOLDS_REVIEW.md). The optional Qwen/OpenRouter packet is frozen offline, not sent; no API charge.
+- Original P3 cancellation precision issue remains documented and unchanged. Hosted CI has not run for this feature. No push, PR, merge, deployment, scheduler installation or private production access.
+
+Use [the expiring-holds handoff](../docs/MARKETPLACE_HOLDS_HANDOFF.md), [ADR 004](docs/adr-004-expiring-holds.md), and [operations](docs/HOLDS_OPERATIONS.md) to resume. The foundation records below are historical and retain their earlier counts and authorization states.
+
+---
+
 Historical implementation checkpoint. For final review, hosted checks and the completed external review, see [final review closure](../docs/MARKETPLACE_FINAL_REVIEW.md). Earlier verification counts and authorization statements below describe that checkpoint.
 
 Updated 8 November 2026. Branch: `codex/marketplace-foundation`. Sanitized public release base: `7b9dadb`. Original implementation: `cb93f5c`; reviewed target: `bb34e1a`; original acceptance report/regressions preserved in `13482eb`; tested blocker fixes in `b13126d`.

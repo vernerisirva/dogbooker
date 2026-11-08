@@ -1,3 +1,9 @@
+# Current expiring-holds publication checkpoint
+
+For branch `codex/marketplace-expiring-holds`, use [the current handoff](../../docs/MARKETPLACE_HOLDS_HANDOFF.md). Local implementation/review/validation are complete; publishing this new branch remains unauthorized. The foundation handoff below is retained as historical evidence and grants no authority for this feature.
+
+---
+
 # Marketplace publication handoff
 
 Updated 8 November 2026. Independent acceptance: **PASS WITH NOTES**. This is a local marketplace foundation, not a production release.
@@ -15,11 +21,11 @@ Updated 8 November 2026. Independent acceptance: **PASS WITH NOTES**. This is a 
 
 ## Hosted results on corrective commit 0149cb0
 
-| Exact check | Workflow | Result | Evidence |
-| --- | --- | --- | --- |
-| `validate` | CI | success | [Run](https://github.com/vernerisirva/dogbooker/actions/runs/42504380976), [job](https://github.com/vernerisirva/dogbooker/actions/runs/42504380976/job/128803744131) |
+| Exact check       | Workflow              | Result  | Evidence                                                                                                                                                              |
+| ----------------- | --------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `validate`        | CI                    | success | [Run](https://github.com/vernerisirva/dogbooker/actions/runs/42504380976), [job](https://github.com/vernerisirva/dogbooker/actions/runs/42504380976/job/128803744131) |
 | `local-prototype` | Marketplace prototype | success | [Run](https://github.com/vernerisirva/dogbooker/actions/runs/42504380921), [job](https://github.com/vernerisirva/dogbooker/actions/runs/42504380921/job/128803744220) |
-| `gitleaks` | Secret scan | success | [Run](https://github.com/vernerisirva/dogbooker/actions/runs/42504380945), [job](https://github.com/vernerisirva/dogbooker/actions/runs/42504380945/job/128803744292) |
+| `gitleaks`        | Secret scan           | success | [Run](https://github.com/vernerisirva/dogbooker/actions/runs/42504380945), [job](https://github.com/vernerisirva/dogbooker/actions/runs/42504380945/job/128803744292) |
 
 All push runs report the full corrective SHA above. All corresponding pull-request runs also succeeded: [CI](https://github.com/vernerisirva/dogbooker/actions/runs/42504385996), [marketplace](https://github.com/vernerisirva/dogbooker/actions/runs/42504385957), [secret scan](https://github.com/vernerisirva/dogbooker/actions/runs/42504385994). No required step was failed or skipped in these successful jobs.
 

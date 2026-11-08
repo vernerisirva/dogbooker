@@ -52,6 +52,7 @@ export async function setAvailability(actor: string, input: unknown) {
 export async function search(actor: string, input: unknown) {
   const p = searchSchema.parse(input);
   return transaction(actor, async (c) => {
+    await c.query("SELECT reconcile_actor_holds()");
     const dogs = (
       await c.query<MatchingDog>(
         "SELECT id,size,social,requirements,preferences FROM dogs WHERE id=ANY($1::uuid[])",
@@ -99,14 +100,25 @@ export async function requestBooking(actor: string, input: unknown) {
 }
 export async function decideBooking(actor: string, input: unknown) {
   const p = decisionSchema.parse(input);
-  return transaction(actor, async (c) => {
+  const result = await transaction(actor, async (c) => {
     await c.query("SELECT decide_booking($1,$2,$3)", [
       p.id,
       p.decision,
       p.revision,
     ]);
-    return { ok: true };
+    return (
+      await c.query<{ status: Booking["status"] }>(
+        "SELECT status FROM bookings WHERE id=$1",
+        [p.id],
+      )
+    ).rows[0];
   });
+  if (result.status === "expired")
+    throw new MarketError(
+      "Förfrågan har gått ut. Du kan skicka en ny förfrågan om hundvakten fortfarande är tillgänglig.",
+      409,
+    );
+  return { ok: true };
 }
 export type Booking = {
   id: string;
@@ -114,7 +126,10 @@ export type Booking = {
   sitterName: string;
   start_date: string;
   end_date: string;
-  status: "pending" | "confirmed" | "declined" | "cancelled";
+  status: "pending" | "confirmed" | "declined" | "cancelled" | "expired";
+  expires_at: string | null;
+  expired_at: string | null;
+  approval_closed: boolean;
   daily_price: number;
   total_price: number;
   revision: number;
@@ -124,6 +139,7 @@ export type Booking = {
 export async function dashboard(actor: string, id?: string) {
   if (id) z.uuid().parse(id);
   return transaction(actor, async (c) => {
+    await c.query("SELECT reconcile_actor_holds()");
     const dogs = (
       await c.query<Dog>(
         "SELECT id,name,size,age_years,breed,social,requirements,preferences,care_notes FROM dogs ORDER BY name",
@@ -148,7 +164,7 @@ export async function dashboard(actor: string, id?: string) {
     ).rows;
     const rows = (
       await c.query<Omit<Booking, "dogs" | "sitterName">>(
-        `SELECT id,sitter_id,start_date::text,end_date::text,status,daily_price,total_price,revision,EXISTS(SELECT 1 FROM sitters s WHERE s.id=bookings.sitter_id) AS "canDecide" FROM bookings WHERE ($1::uuid IS NULL OR id=$1) ORDER BY start_date DESC,id LIMIT 200`,
+        `SELECT id,sitter_id,start_date::text,end_date::text,status,expires_at::text,expired_at::text,(start_date::timestamp AT TIME ZONE 'Europe/Stockholm'<=clock_timestamp()) AS approval_closed,daily_price,total_price,revision,EXISTS(SELECT 1 FROM sitters s WHERE s.id=bookings.sitter_id) AS "canDecide" FROM bookings WHERE ($1::uuid IS NULL OR id=$1) ORDER BY start_date DESC,id LIMIT 200`,
         [id ?? null],
       )
     ).rows;

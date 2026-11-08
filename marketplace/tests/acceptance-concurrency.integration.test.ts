@@ -239,7 +239,7 @@ it("serializes a queued first-profile save around an intervening committed two-d
 it.each([false, true])(
   "rechecks the clock after a real cross-sitter exclusion wait (cross midnight=%s)",
   async (crossMidnight) => {
-    const w = await world(2, todayStockholm());
+    const w = await world(2, addDays(todayStockholm(), 1));
     const secondSitter = await person();
     const sid2 = (
       await run(secondSitter, "SELECT save_sitter($1) AS id", [profile])

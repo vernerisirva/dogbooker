@@ -47,6 +47,14 @@ export async function handle(work: () => Promise<Response>) {
       );
     const code =
       e && typeof e === "object" && "code" in e ? String(e.code) : "";
+    if (code === "P0003")
+      return json(
+        {
+          error:
+            "Vistelsen har redan börjat eller förfrågan har gått ut. Välj ett framtida startdatum; förfrågningar samma dag är inte möjliga.",
+        },
+        409,
+      );
     if (code === "P0002")
       return json({ error: "Uppgiften kunde inte hittas." }, 404);
     if (code === "42501")

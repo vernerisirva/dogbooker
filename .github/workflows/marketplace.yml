@@ -43,7 +43,7 @@ jobs:
           "$PG_BIN/pg_ctl" -D /tmp/dogbooker-marketplace-pg/data -l /tmp/dogbooker-marketplace-pg/server.log -o '-h 127.0.0.1 -p 55438 -k /tmp/dogbooker-marketplace-pg' start
       - run: npm run db:setup && npm run db:migrate && npm run db:seed
         working-directory: marketplace
-      - run: npm run lint && npm run typecheck && npm test && npm run test:integration && npm run benchmark
+      - run: npm run lint && npm run typecheck && npm test && npm run test:integration && npm run holds:expire && npm run benchmark
         working-directory: marketplace
       - run: npm run build
         working-directory: marketplace

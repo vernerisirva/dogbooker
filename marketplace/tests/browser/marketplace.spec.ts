@@ -193,3 +193,116 @@ test("credentials cannot submit as a GET before hydration", async ({
   expect(page.url()).toBe("http://127.0.0.1:3100/");
   await context.close();
 });
+
+test("shows a pending deadline and commits expiration after a stale approval, preserving private history", async ({
+  page,
+  browser,
+}) => {
+  await login(page, 0);
+  const context = await browser.newContext({
+    locale: "sv-SE",
+    timezoneId: "Europe/Stockholm",
+  });
+  const sitter = await context.newPage();
+  await login(sitter, 2);
+  await sitter
+    .getByRole("button", { name: "Mina bokningar", exact: true })
+    .click();
+  const me = await (await page.request.get("/api/marketplace/me")).json();
+  const sitterProfile = (
+    await admin.query("SELECT id,daily_price FROM sitters WHERE user_id=$1", [
+      people[2].id,
+    ])
+  ).rows[0];
+  await admin.query("UPDATE booking_hold_policy SET duration_seconds=15");
+  let id: string | undefined;
+  try {
+    const response = await page.request.post("/api/marketplace/bookings", {
+      headers: { origin: "http://127.0.0.1:3100" },
+      data: {
+        sitterId: sitterProfile.id,
+        dogIds: [me.dogs.find((d: { size: string }) => d.size === "small").id],
+        startDate: addDays(todayStockholm(), 24),
+        endDate: addDays(todayStockholm(), 24),
+        requestKey: randomUUID(),
+        expectedDailyPrice: sitterProfile.daily_price,
+        latitude: 59.33,
+        longitude: 18.07,
+      },
+    });
+    expect(response.status()).toBe(200);
+    id = (await response.json()).id;
+    await page
+      .getByRole("button", { name: "Mina bokningar", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Uppdatera", exact: true }).click();
+    const ownerCard = page.locator(`[data-booking-id="${id}"]`);
+    await expect(
+      ownerCard.getByText("Väntar på godkännande", { exact: true }),
+    ).toBeVisible();
+    await expect(ownerCard.locator("time")).toBeVisible();
+    await expect(ownerCard).toContainText("Stockholm");
+    await sitter
+      .getByRole("button", { name: "Uppdatera", exact: true })
+      .click();
+    const sitterCard = sitter.locator(`[data-booking-id="${id}"]`);
+    await expect(
+      sitterCard.getByRole("button", { name: "Godkänn", exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(
+        async () =>
+          (
+            await admin.query(
+              "SELECT expires_at<=clock_timestamp() AS due FROM bookings WHERE id=$1",
+              [id],
+            )
+          ).rows[0].due,
+        { timeout: 20000 },
+      )
+      .toBe(true);
+    await sitterCard
+      .getByRole("button", { name: "Godkänn", exact: true })
+      .click();
+    await expect(
+      sitter.getByRole("alert").filter({ hasText: "Förfrågan har gått ut" }),
+    ).toContainText("Förfrågan har gått ut");
+    await expect(
+      sitterCard.getByText("Förfrågan har gått ut", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      sitterCard.getByRole("button", { name: "Godkänn", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      sitterCard.getByText("Delade omsorgsuppgifter", { exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Uppdatera", exact: true }).click();
+    await expect(
+      ownerCard.getByText("Förfrågan har gått ut", { exact: true }),
+    ).toBeVisible();
+    await expect(ownerCard).toContainText("Du kan skicka en ny förfrågan");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: ".local/holds-expired-mobile.png",
+      fullPage: true,
+    });
+    expect(
+      (
+        await admin.query("SELECT status,revision FROM bookings WHERE id=$1", [
+          id,
+        ])
+      ).rows[0],
+    ).toEqual({ status: "expired", revision: 1 });
+    expect(
+      (
+        await admin.query(
+          "SELECT count(*)::int AS n FROM reservations WHERE booking_id=$1 AND active",
+          [id],
+        )
+      ).rows[0].n,
+    ).toBe(0);
+  } finally {
+    await admin.query("UPDATE booking_hold_policy SET duration_seconds=172800");
+    await context.close();
+  }
+});

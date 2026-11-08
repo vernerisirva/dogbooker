@@ -15,6 +15,7 @@
     "db:setup": "node --import tsx scripts/setup-local.ts",
     "db:migrate": "node --env-file=.env.local --import tsx scripts/migrate.ts",
     "db:seed": "node --env-file=.env.local --import tsx scripts/seed.ts",
-    "benchmark": "node --import tsx scripts/benchmark.ts"
+    "benchmark": "node --import tsx scripts/benchmark.ts",
+    "holds:expire": "node --env-file=.env.local --import tsx scripts/expire-holds.ts"
   }
 }

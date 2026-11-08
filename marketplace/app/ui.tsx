@@ -1,7 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useHydrated } from "../../src/components/use-hydrated";
-import { useState, useRef, type FormEvent } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type FormEvent,
+} from "react";
 import {
   PawPrint,
   MapPin,
@@ -13,6 +19,7 @@ import {
 import type { dashboard } from "../lib/service";
 import type { rankSitters } from "../lib/matching";
 import type { SearchInput } from "../lib/validation";
+import { formatDeadline } from "../lib/hold-display";
 import { addDays, dayCount, formatRange } from "../lib/dates";
 import {
   Checks,
@@ -198,10 +205,25 @@ export function Marketplace({
   const [results, setResults] = useState<Results | null>(null),
     [query, setQuery] = useState<SearchInput | null>(null);
   const keys = useRef(new Map<string, string>());
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const d = await api<State>("/api/marketplace/me");
     setState(d);
-  }
+  }, []);
+  const pending = state.bookings.some((b) => b.status === "pending");
+  useEffect(() => {
+    if (!pending) return;
+    const update = () => {
+      void refresh().catch(() => {
+        /* Retry on the next tick or manual refresh. */
+      });
+    };
+    const timer = window.setInterval(update, 30_000);
+    window.addEventListener("focus", update);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", update);
+    };
+  }, [pending, refresh]);
   async function run(work: () => Promise<void>, success = "") {
     if (busy) return;
     setBusy(true);
@@ -361,7 +383,7 @@ export function Marketplace({
                         type="date"
                         name="startDate"
                         required
-                        min={today}
+                        min={addDays(today, 1)}
                         max={addDays(today, 365)}
                         defaultValue={addDays(today, 7)}
                       />
@@ -372,7 +394,7 @@ export function Marketplace({
                         type="date"
                         name="endDate"
                         required
-                        min={today}
+                        min={addDays(today, 1)}
                         max={addDays(today, 365)}
                         defaultValue={addDays(today, 9)}
                       />
@@ -554,8 +576,10 @@ export function Marketplace({
                           </button>
                         </div>
                         <p className="hint">
-                          Dina valda hundars omsorgsanteckningar delas med denna
-                          hundvakt när du skickar.
+                          En förfrågan gäller som längst till vistelsens första
+                          midnatt (Stockholm). Förfrågningar samma dag är inte
+                          möjliga. Dina valda hundars omsorgsanteckningar delas
+                          med denna hundvakt när du skickar.
                         </p>
                       </article>
                     ))}
@@ -665,14 +689,37 @@ export function Marketplace({
                       <span className={`pill status-${b.status}`}>
                         {
                           {
-                            pending: "Väntar på svar",
+                            pending: "Väntar på godkännande",
                             confirmed: "Godkänd",
                             declined: "Nekad",
                             cancelled: "Avbokad",
+                            expired: "Förfrågan har gått ut",
                           }[b.status]
                         }
                       </span>
                     </div>
+                    {b.status === "pending" && b.expires_at && (
+                      <p>
+                        Går ut{" "}
+                        <time dateTime={b.expires_at}>
+                          {formatDeadline(b.expires_at)}
+                        </time>{" "}
+                        (Stockholm).
+                      </p>
+                    )}
+                    {b.status === "pending" && b.approval_closed && (
+                      <p>
+                        Vistelsen har redan börjat. Förfrågan kan inte
+                        godkännas. Den kan avbokas eller går ut vid tidsgränsen
+                        ovan.
+                      </p>
+                    )}
+                    {b.status === "expired" && (
+                      <p>
+                        Förfrågan har gått ut. Du kan skicka en ny förfrågan om
+                        hundvakten fortfarande är tillgänglig.
+                      </p>
+                    )}
                     <p className="booking-date">
                       {formatRange(b.start_date, b.end_date)}
                     </p>
@@ -711,6 +758,7 @@ export function Marketplace({
                     <div className="actions">
                       {b.status === "pending" &&
                         b.canDecide &&
+                        !b.approval_closed &&
                         [
                           ["confirmed", "Godkänn"],
                           ["declined", "Neka"],
@@ -723,12 +771,15 @@ export function Marketplace({
                             disabled={busy || !hydrated}
                             onClick={() =>
                               void run(async () => {
-                                await api("/api/marketplace/decisions", {
-                                  id: b.id,
-                                  decision,
-                                  revision: b.revision,
-                                });
-                                await refresh();
+                                try {
+                                  await api("/api/marketplace/decisions", {
+                                    id: b.id,
+                                    decision,
+                                    revision: b.revision,
+                                  });
+                                } finally {
+                                  await refresh();
+                                }
                               }, "Bokningen är uppdaterad.")
                             }
                           >
@@ -740,12 +791,15 @@ export function Marketplace({
                           disabled={busy || !hydrated}
                           onClick={() =>
                             void run(async () => {
-                              await api("/api/marketplace/decisions", {
-                                id: b.id,
-                                decision: "cancelled",
-                                revision: b.revision,
-                              });
-                              await refresh();
+                              try {
+                                await api("/api/marketplace/decisions", {
+                                  id: b.id,
+                                  decision: "cancelled",
+                                  revision: b.revision,
+                                });
+                              } finally {
+                                await refresh();
+                              }
                             }, "Bokningen är avbokad och platserna är lediga.")
                           }
                         >

@@ -1,5 +1,11 @@
 # Marketplace implementation and verification
 
+## Expiring holds — 8 November 2026
+
+Implementation/test commit `72414b59fafefe46fa1a094718ab18f6c5bf341c` adds the full pending-hold lifecycle on the merged public foundation. Final local validation: **458/458** tests passed, both production builds/lint/types and migration reruns passed, zero dependency vulnerabilities, unchanged 965-entry license inventory, and clean secret scans. [Independent review](docs/EXPIRING_HOLDS_REVIEW.md): **PASS WITH NOTES**.
+
+See [the current handoff](../docs/MARKETPLACE_HOLDS_HANDOFF.md) for exact scope, commands/counts, initial failed checks and their disposition, concurrency evidence, migration behavior and publication boundary. [ADR 004](docs/adr-004-expiring-holds.md) and [operations](docs/HOLDS_OPERATIONS.md) describe the implementation. The reports below remain historical; they do not describe the current authorization or test count.
+
 ## Blocker remediation — 8 November 2026
 
 Both release blockers from the [independent acceptance review](../MARKETPLACE_ACCEPTANCE_REVIEW.md) are fixed and prepared for independent re-review. The historical FAIL is retained as review evidence; this implementation report does not claim a new independent verdict. Implementation/test fix commit: `b13126d`. The work remains on `codex/marketplace-foundation`, based on sanitized public release `7b9dadb`.
@@ -10,18 +16,18 @@ Both release blockers from the [independent acceptance review](../MARKETPLACE_AC
 
 Final clean-install validation uses Node **22.23.4**, PostgreSQL **16.14**, Playwright Chromium **156.0.8078.4**, only synthetic local accounts/databases, and the unchanged dependency lockfile.
 
-| Check | Result |
-| --- | --- |
-| Standalone unit / integration / browser | **150 / 93 / 13 passed** |
-| Marketplace unit / integration / browser | **63 / 58 / 4 passed** |
-| Total | **381 passed, 0 failed, 0 skipped** |
-| Original six failing acceptance regressions | **6/6 passed**, original assertions retained |
-| Both applications: lint, TypeScript, production build | Passed |
-| Both migration runners, each invoked twice | Passed; reruns are no-ops |
-| Fresh `npm ci` | 813 packages installed; 814 installed entries audited; zero vulnerabilities |
-| Lockfile dependency audit / license inventory | Zero vulnerabilities; 965 entries; inventory unchanged |
-| Secret scan | Gitleaks: publishable source and full feature history passed |
-| Hosted CI | Not run; branch remains unpublished |
+| Check                                                 | Result                                                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| Standalone unit / integration / browser               | **150 / 93 / 13 passed**                                                    |
+| Marketplace unit / integration / browser              | **63 / 58 / 4 passed**                                                      |
+| Total                                                 | **381 passed, 0 failed, 0 skipped**                                         |
+| Original six failing acceptance regressions           | **6/6 passed**, original assertions retained                                |
+| Both applications: lint, TypeScript, production build | Passed                                                                      |
+| Both migration runners, each invoked twice            | Passed; reruns are no-ops                                                   |
+| Fresh `npm ci`                                        | 813 packages installed; 814 installed entries audited; zero vulnerabilities |
+| Lockfile dependency audit / license inventory         | Zero vulnerabilities; 965 entries; inventory unchanged                      |
+| Secret scan                                           | Gitleaks: publishable source and full feature history passed                |
+| Hosted CI                                             | Not run; branch remains unpublished                                         |
 
 The 27 controlled acceptance concurrency cases include both booking/capacity commit orders at Read Committed, Repeatable Read and Serializable; concurrent reductions/approvals; all five original stale-snapshot combinations; schedule changes; cancellation commit/rollback; and the two previously unverified profile/midnight scenarios. Ten transaction integration cases cover explicit isolation, actual deadlock recovery, full callback rollback/retry, retry exhaustion, non-retryable errors, disconnected-client disposal and runtime role verification. No sleep chooses the ordering of those concurrency cases.
 

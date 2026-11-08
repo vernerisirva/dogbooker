@@ -1,6 +1,6 @@
 # DogBooker Marketplace — local prototype
 
-A separate Swedish boarding marketplace app. Owners register synthetic accounts, manage several dogs, compare explained matches and request a stay. Sitters maintain profiles and open dates, then approve, decline or cancel requests in their private agenda. Pending requests reserve capacity immediately. No payments or email are sent.
+A separate Swedish boarding marketplace app. Owners register synthetic accounts, manage several dogs, compare explained matches and request a stay. Sitters maintain profiles and open dates, then approve, decline or cancel requests in their private agenda. Pending requests reserve capacity immediately and expire after their stored deadline (normally at most 48 hours). No payments or email are sent.
 
 This app is based on the public MIT release and shares its locked dependencies and a few pure helpers. It does not use the standalone app's database, cookies or database URLs. Do not deploy this prototype or point it at an existing database. Runtime configuration intentionally accepts only `127.0.0.1:55438/dogbooker_marketplace` and the dedicated restricted roles.
 
@@ -25,7 +25,7 @@ Open [the local marketplace](http://127.0.0.1:3100). Use exactly this origin, no
 
 Database URLs must use `postgres://` or `postgresql://`, include credentials, and contain no query parameters, fragments or raw whitespace. Percent-encoded credentials are supported. `MARKETPLACE_DATABASE_URL` must name `marketplace_app`; `MARKETPLACE_AUTH_DATABASE_URL` must name `marketplace_auth`. The effective server identity and restricted role privileges are checked before application queries. Generic database URLs are ignored. Run local commands without nonempty `PG*` or `NODE_PG_FORCE_NATIVE` environment variables, including `PGOPTIONS` and `PGPASSFILE`; these overrides fail closed. Local production builds (`NODE_ENV=production`) and CI use the same restrictions.
 
-For an existing demo, run `npm run db:migrate` before restarting the app. Migration 0006 is additive and preserves profile, availability, booking and care data; do not edit previously applied migration files.
+For an existing demo, run `npm run db:migrate` before restarting the app/worker. Migration 0007 preserves all bookings, gives legacy pending requests a fresh full 48-hour grace, and blocks approval after the stay begins. New requests expire by their first Stockholm midnight, so same-day requests are not supported. Do not edit applied migrations. Run `npm run holds:expire` each minute through the [one-shot scheduler setup](docs/HOLDS_OPERATIONS.md); no scheduler is enabled automatically.
 
 Demo logins and one randomly generated password are saved in `.local/demo-accounts.json` (mode 0600):
 
@@ -51,6 +51,7 @@ npm run test:integration
 npm run typecheck
 npm run lint
 npm run benchmark
+npm run holds:expire
 npm run build
 npm run test:e2e
 ```

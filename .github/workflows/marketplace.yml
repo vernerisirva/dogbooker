@@ -1,0 +1,52 @@
+name: Marketplace prototype
+on:
+  push:
+    paths:
+      [
+        "marketplace/**",
+        "src/lib/dates.ts",
+        "src/lib/local-postgres.ts",
+        "src/components/use-hydrated.ts",
+        "package*.json",
+        ".github/workflows/marketplace.yml",
+      ]
+  pull_request:
+    paths:
+      [
+        "marketplace/**",
+        "src/lib/dates.ts",
+        "src/lib/local-postgres.ts",
+        "src/components/use-hydrated.ts",
+        "package*.json",
+        ".github/workflows/marketplace.yml",
+      ]
+permissions:
+  contents: read
+jobs:
+  local-prototype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Start dedicated loopback PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-contrib
+          PG_BIN="$(pg_config --bindir)"
+          mkdir -p /tmp/dogbooker-marketplace-pg
+          "$PG_BIN/initdb" -D /tmp/dogbooker-marketplace-pg/data --auth-local=trust --auth-host=scram-sha-256 --encoding=UTF8 --no-locale
+          "$PG_BIN/pg_ctl" -D /tmp/dogbooker-marketplace-pg/data -l /tmp/dogbooker-marketplace-pg/server.log -o '-h 127.0.0.1 -p 55438 -k /tmp/dogbooker-marketplace-pg' start
+      - run: npm run db:setup && npm run db:migrate && npm run db:seed
+        working-directory: marketplace
+      - run: npm run lint && npm run typecheck && npm test && npm run test:integration && npm run benchmark
+        working-directory: marketplace
+      - run: npm run build
+        working-directory: marketplace
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        working-directory: marketplace

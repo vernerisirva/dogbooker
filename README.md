@@ -1,5 +1,7 @@
 # DogBooker
 
+An isolated, local-only [marketplace prototype](marketplace/README.md) is available on this feature branch. It has its own app, authentication and database; the standalone installation below remains independent.
+
 A small, self-hosted dog-sitting calendar with a Swedish interface. Invite owners, accept booking requests, and coordinate drop-off and pickup times. Each installation has its own administrator, database, accounts and email credentials.
 
 ![Swedish booking calendar with synthetic sample data](docs/screenshots/calendar.png)
@@ -39,6 +41,8 @@ Open <http://localhost:3000>. Privately open `.local/admin-invitation.txt`, foll
 
 Only on a disposable local database: set `ALLOW_TEST_DATABASE=true` in `.env.local`, keep `TEST_DATABASE_HOST` equal to that database's hostname, and leave Gmail credentials empty. Do this **instead of creating a real administrator**.
 
+Synthetic-test mode accepts only loopback PostgreSQL (`127.0.0.1`, `localhost` or `::1`), an explicit port/username/password, and database names `dogbooker`, `dogbooker_standalone` or names ending in `_test`. `DATABASE_URL` and `DATABASE_URL_UNPOOLED` must identify the same connection. URLs cannot contain query parameters/fragments; nonempty `PG*` or `NODE_PG_FORCE_NATIVE` environment overrides are refused. Fixtures check the connected database/role and refuse non-synthetic accounts before changing data. Normal self-hosted configuration remains available with test mode disabled.
+
 ```sh
 npm run db:migrate
 npm run db:seed
@@ -49,7 +53,7 @@ The seed replaces test fixtures, creates sample stays, and writes random passwor
 
 ## Checks
 
-Use a separate disposable test database with the test settings above; browser tests start their own server on port 3000, which must be free.
+Use a separate disposable test database with the test settings above; browser tests start their own server on port 3000, which must be free. `BASE_URL` overrides are refused so destructive fixture tests cannot target an external application.
 
 ```sh
 npm run lint

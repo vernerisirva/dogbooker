@@ -2,18 +2,36 @@ import { pool } from "../src/db";
 import { randomBytes } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { writeFile, mkdir } from "node:fs/promises";
+import { testDatabaseConfig } from "../src/lib/test-database-config";
+import { localPostgresUrl } from "../src/lib/local-postgres";
 export async function assertTestDatabase() {
-  if (process.env.GMAIL_APP_PASSWORD?.trim())
-    throw new Error("Refusing fixtures with outbound email credentials configured.");
-  const url = process.env.DATABASE_URL;
+  const expected = testDatabaseConfig();
+  const actual = pool.options.connectionString
+    ? localPostgresUrl(pool.options.connectionString)
+    : pool.options;
   if (
-    process.env.ALLOW_TEST_DATABASE !== "true" ||
-    !url ||
-    new URL(url).hostname !== process.env.TEST_DATABASE_HOST
+    ["host", "port", "database", "user", "password"].some(
+      (key) =>
+        expected[key as keyof typeof expected] !==
+        actual[key as keyof typeof actual],
+    )
   )
     throw new Error(
-      "Tests require ALLOW_TEST_DATABASE=true and an exact TEST_DATABASE_HOST match. Never use production.",
+      "Refusing fixtures: the existing pool does not match the validated test configuration.",
     );
+  const identity = (
+    await pool.query(
+      "SELECT current_database() AS db,current_user AS role,session_user AS login,host(inet_server_addr()) AS host,inet_server_port() AS port",
+    )
+  ).rows[0];
+  if (
+    identity.db !== expected.database ||
+    identity.role !== expected.user ||
+    identity.login !== expected.user ||
+    identity.port !== expected.port ||
+    !["127.0.0.1", "::1"].includes(identity.host)
+  )
+    throw new Error("Refusing fixtures: unexpected database identity.");
   const real = await pool.query(
     "SELECT count(*)::int AS n FROM users WHERE email NOT LIKE '%@example.test'",
   );

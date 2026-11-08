@@ -1,13 +1,25 @@
 import { Pool } from "pg";
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { testDatabaseConfig } from "../src/lib/test-database-config";
 export async function migrate(
   connectionString = process.env.DATABASE_URL_UNPOOLED,
 ) {
   if (!connectionString) throw new Error("DATABASE_URL_UNPOOLED is required.");
-  if (new URL(connectionString).hostname.includes("-pooler"))
+  const config =
+    process.env.ALLOW_TEST_DATABASE === "true"
+      ? testDatabaseConfig(connectionString)
+      : { connectionString };
+  let hostname: string;
+  try {
+    hostname =
+      "host" in config ? config.host : new URL(connectionString).hostname;
+  } catch {
+    throw new Error("Invalid migration database configuration.");
+  }
+  if (hostname.includes("-pooler"))
     throw new Error("Migrations require the direct database connection.");
-  const pool = new Pool({ connectionString });
+  const pool = new Pool(config);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

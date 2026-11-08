@@ -1,6 +1,6 @@
 # DogBooker marketplace independent acceptance review
 
-**Remediation note, 8 November 2026:** findings 1 and 2 have implementation fixes and passing regression evidence in [MARKETPLACE_BLOCKER_RESOLUTION.md](MARKETPLACE_BLOCKER_RESOLUTION.md). The original verdict and findings below are retained unchanged in substance; a new independent re-review has not yet occurred.
+**Remediation note, 8 November 2026:** findings 1 and 2 have implementation fixes and passing regression evidence in [MARKETPLACE_BLOCKER_RESOLUTION.md](MARKETPLACE_BLOCKER_RESOLUTION.md). The subsequent [independent re-review](MARKETPLACE_ACCEPTANCE_REREVIEW.md) returned **PASS WITH NOTES**, retaining the inherited P3 cancellation precision finding and its reproduced flaky test failure. The original verdict and findings below remain historical evidence; hosted CI and merge acceptance are still pending.
 
 **Verdict: FAIL — fix findings 1 and 2 before merge acceptance.** The normal local prototype flows work, and both previously unverified concurrency scenarios now have passing controlled tests. However, the claimed local-only connection boundary can be bypassed by connection-string options, and capacity protection depends on an isolation level the application does not enforce. These are configuration-dependent failures, not evidence of overbooking or cross-tenant disclosure in the tested default configuration.
 

@@ -1,5 +1,7 @@
 # Marketplace acceptance blockers — resolution evidence
 
+**Subsequent independent review, 8 November 2026:** [PASS WITH NOTES](MARKETPLACE_ACCEPTANCE_REREVIEW.md). Both fixes were independently verified. Completed runs passed the 381 baseline tests plus 24 new cases; the first standalone integration run reproduced the inherited P3 flake before an unchanged repeat passed. The implementation-time record below is preserved. Hosted CI and production readiness remain unverified; publication is not authorized.
+
 8 November 2026. Branch `codex/marketplace-foundation`, sanitized public base `7b9dadb`. Scope: fix the two blocking findings from [the independent acceptance review](MARKETPLACE_ACCEPTANCE_REVIEW.md), preserve behavior, and prepare independent re-review. Implementation/test fix commit: `b13126d` (`fix: enforce local database boundaries and snapshot-safe inventory`). No unrelated feature was added. The historical review verdict remains FAIL until a new independent review accepts the candidate.
 
 **Implementation result: both blockers fixed; all 381 tests pass. Ready for independent re-review. Hosted CI and merge acceptance remain pending; production readiness remains no.**

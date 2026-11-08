@@ -1,17 +1,18 @@
-export function localDatabase(value: string | undefined, role?: string) {
-  if (!value)
-    throw new Error("Marketplace local database configuration is missing.");
-  const u = new URL(value);
+import { localPostgresUrl } from "../../src/lib/local-postgres";
+export type RuntimeRole = "marketplace_app" | "marketplace_auth";
+export function localDatabase(value: string | undefined, role: RuntimeRole) {
+  const config = localPostgresUrl(value);
   if (
-    u.hostname !== "127.0.0.1" ||
-    u.port !== "55438" ||
-    u.pathname !== "/dogbooker_marketplace" ||
-    (role && u.username !== role)
+    !["marketplace_app", "marketplace_auth"].includes(role) ||
+    config.host !== "127.0.0.1" ||
+    config.port !== 55438 ||
+    config.database !== "dogbooker_marketplace" ||
+    config.user !== role
   )
     throw new Error(
       "This prototype requires its dedicated loopback database and restricted role.",
     );
-  return value;
+  return config;
 }
 export function localOrigin() {
   const value = process.env.MARKETPLACE_ORIGIN ?? "http://127.0.0.1:3100";

@@ -1,20 +1,17 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { Pool, type PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
-import { userInfo } from "node:os";
+import { localAdminConfig } from "../scripts/local-admin";
 import { readFile, readdir } from "node:fs/promises";
 import { addDays, todayStockholm } from "../lib/dates";
 
 // All instrumentation is confined to this disposable database. No app migration changes.
 const options = {
-  host: "/tmp/dogbooker-marketplace-pg",
-  port: 55438,
-  user: userInfo().username,
   statement_timeout: 10000,
 };
 const name = `mp_acceptance_${randomUUID().replaceAll("-", "")}`;
-const control = new Pool({ ...options, database: "postgres" });
-const db = new Pool({ ...options, database: name, max: 8 });
+const control = new Pool({ ...localAdminConfig("postgres"), ...options });
+const db = new Pool({ ...localAdminConfig(name), ...options, max: 8 });
 let created = false;
 beforeAll(async () => {
   await control.query(`CREATE DATABASE ${name}`);
@@ -432,6 +429,193 @@ it.each([
       expect(["P0001", "40001"]).toContain(change.code);
     } finally {
       await finish(editor);
+    }
+  },
+);
+
+it.each([
+  ["READ COMMITTED", "book"],
+  ["READ COMMITTED", "reduce"],
+  ["REPEATABLE READ", "book"],
+  ["REPEATABLE READ", "reduce"],
+  ["SERIALIZABLE", "book"],
+  ["SERIALIZABLE", "reduce"],
+])(
+  "serializes a booking against capacity reduction at %s, %s first",
+  async (isolation, firstAction) => {
+    const w = await world();
+    const first = await begin(
+      firstAction === "book" ? w.owner : w.sitter,
+      isolation,
+    );
+    const second = await begin(
+      firstAction === "book" ? w.sitter : w.owner,
+      isolation,
+    );
+    const firstPid = await pid(first),
+      secondPid = await pid(second);
+    const book = (c: PoolClient) =>
+      c.query("SELECT request_booking($1)", [{ ...w.input, dogIds: w.dogs }]);
+    const reduce = (c: PoolClient) =>
+      c.query("SELECT save_sitter($1)", [{ ...profile, capacity: 1 }]);
+    await (firstAction === "book" ? book(first) : reduce(first));
+    const contender = outcome(
+      firstAction === "book" ? reduce(second) : book(second),
+    );
+    try {
+      await blocked(secondPid, firstPid);
+      await first.query("COMMIT");
+      const result = await contender;
+      expect(result.code).toBe(
+        isolation !== "READ COMMITTED"
+          ? "40001"
+          : firstAction === "book"
+            ? "P0001"
+            : "22023",
+      );
+      expect(
+        (await db.query("SELECT capacity FROM sitters WHERE id=$1", [w.sid]))
+          .rows[0].capacity,
+      ).toBe(firstAction === "book" ? 2 : 1);
+      expect((await occupied(w.sid)).map((x) => x.n)).toEqual(
+        firstAction === "book" ? [2, 2, 2] : [],
+      );
+    } finally {
+      await first.query("ROLLBACK");
+      await contender;
+      await finish(first, second);
+    }
+  },
+);
+
+it.each(["READ COMMITTED", "REPEATABLE READ", "SERIALIZABLE"])(
+  "serializes concurrent capacity reductions at %s",
+  async (isolation) => {
+    const w = await world(3);
+    const first = await begin(w.sitter, isolation),
+      second = await begin(w.sitter, isolation);
+    const firstPid = await pid(first),
+      secondPid = await pid(second);
+    await first.query("SELECT save_sitter($1)", [profile]);
+    const contender = outcome(
+      second.query("SELECT save_sitter($1)", [{ ...profile, capacity: 1 }]),
+    );
+    try {
+      await blocked(secondPid, firstPid, "advisory");
+      await first.query("COMMIT");
+      expect((await contender).code).toBe(
+        isolation === "READ COMMITTED" ? null : "40001",
+      );
+      await second.query(
+        isolation === "READ COMMITTED" ? "COMMIT" : "ROLLBACK",
+      );
+      expect(
+        (await db.query("SELECT capacity FROM sitters WHERE id=$1", [w.sid]))
+          .rows[0].capacity,
+      ).toBe(isolation === "READ COMMITTED" ? 1 : 2);
+      expect(await occupied(w.sid)).toEqual([]);
+    } finally {
+      await first.query("ROLLBACK");
+      await contender;
+      await finish(first, second);
+    }
+  },
+);
+
+it.each(["READ COMMITTED", "REPEATABLE READ", "SERIALIZABLE"])(
+  "makes concurrent approvals idempotent with retry at %s",
+  async (isolation) => {
+    const w = await world();
+    const bid = (
+      await run(w.owner, "SELECT request_booking($1) AS id", [w.input])
+    ).rows[0].id;
+    const first = await begin(w.sitter, isolation),
+      second = await begin(w.sitter, isolation);
+    const firstPid = await pid(first),
+      secondPid = await pid(second);
+    await first.query("SELECT decide_booking($1,'confirmed',0)", [bid]);
+    const contender = outcome(
+      second.query("SELECT decide_booking($1,'confirmed',0)", [bid]),
+    );
+    try {
+      await blocked(secondPid, firstPid);
+      await first.query("COMMIT");
+      expect((await contender).code).toBe(
+        isolation === "READ COMMITTED" ? null : "40001",
+      );
+      await second.query(
+        isolation === "READ COMMITTED" ? "COMMIT" : "ROLLBACK",
+      );
+      await run(
+        w.sitter,
+        "SELECT decide_booking($1,'confirmed',0)",
+        [bid],
+        isolation,
+      );
+      expect(
+        (
+          await db.query("SELECT status,revision FROM bookings WHERE id=$1", [
+            bid,
+          ])
+        ).rows[0],
+      ).toEqual({ status: "confirmed", revision: 1 });
+      expect((await occupied(w.sid)).map((x) => x.n)).toEqual([1, 1, 1]);
+    } finally {
+      await first.query("ROLLBACK");
+      await contender;
+      await finish(first, second);
+    }
+  },
+);
+
+it.each(["REPEATABLE READ", "SERIALIZABLE"])(
+  "rejects stale schedule reads in both write directions at %s",
+  async (isolation) => {
+    const w = await world();
+    const booker = await begin(w.owner, isolation);
+    try {
+      await booker.query("SELECT * FROM bookings");
+      await run(w.sitter, "SELECT set_availability($1,$2,false)", [
+        w.start,
+        w.end,
+      ]);
+      expect(
+        (await outcome(booker.query("SELECT request_booking($1)", [w.input])))
+          .code,
+      ).toBe("40001");
+      expect(await occupied(w.sid)).toEqual([]);
+    } finally {
+      await finish(booker);
+    }
+    await run(w.sitter, "SELECT set_availability($1,$2,true)", [
+      w.start,
+      w.end,
+    ]);
+    const closer = await begin(w.sitter, isolation);
+    try {
+      await closer.query("SELECT * FROM availability");
+      await run(w.owner, "SELECT request_booking($1)", [w.input]);
+      expect(
+        (
+          await outcome(
+            closer.query("SELECT set_availability($1,$2,false)", [
+              w.start,
+              w.end,
+            ]),
+          )
+        ).code,
+      ).toBe("40001");
+      expect((await occupied(w.sid)).map((x) => x.n)).toEqual([1, 1, 1]);
+      expect(
+        (
+          await db.query(
+            "SELECT count(*)::int n FROM availability WHERE sitter_id=$1",
+            [w.sid],
+          )
+        ).rows[0].n,
+      ).toBe(3);
+    } finally {
+      await finish(closer);
     }
   },
 );

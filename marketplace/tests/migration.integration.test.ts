@@ -1,19 +1,14 @@
 import { it, expect } from "vitest";
 import { Pool } from "pg";
-import { userInfo } from "node:os";
+import { localAdminConfig } from "../scripts/local-admin";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { addDays, todayStockholm } from "../lib/dates";
 it("installs fresh and preserves populated reservations when converting ranges to daily slots", async () => {
-  const options = {
-    host: "/tmp/dogbooker-marketplace-pg",
-    port: 55438,
-    user: userInfo().username,
-  };
-  const control = new Pool({ ...options, database: "postgres" });
+  const control = new Pool(localAdminConfig("postgres"));
   const name = `mp_migration_${randomUUID().replaceAll("-", "")}`;
   await control.query(`CREATE DATABASE ${name}`);
-  const db = new Pool({ ...options, database: name });
+  const db = new Pool(localAdminConfig(name));
   try {
     for (const file of ["0001_foundation.sql", "0002_auth_uuid_defaults.sql"])
       await db.query(
@@ -66,6 +61,14 @@ it("installs fresh and preserves populated reservations when converting ranges t
       client.release();
     }
     const snapshot = async () => ({
+      sitters: (
+        await db.query("SELECT to_jsonb(s) data FROM sitters s ORDER BY id")
+      ).rows,
+      availability: (
+        await db.query(
+          "SELECT to_jsonb(a) data FROM availability a ORDER BY sitter_id,day",
+        )
+      ).rows,
       bookings: (
         await db.query("SELECT to_jsonb(b) data FROM bookings b ORDER BY id")
       ).rows,
@@ -88,6 +91,7 @@ it("installs fresh and preserves populated reservations when converting ranges t
       "0003_daily_inventory.sql",
       "0004_review_hardening.sql",
       "0005_post_write_date_check.sql",
+      "0006_inventory_snapshot_fence.sql",
     ])
       await db.query(
         await readFile(

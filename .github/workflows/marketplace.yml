@@ -5,6 +5,7 @@ on:
       [
         "marketplace/**",
         "src/lib/dates.ts",
+        "src/lib/local-postgres.ts",
         "src/components/use-hydrated.ts",
         "package*.json",
         ".github/workflows/marketplace.yml",
@@ -14,6 +15,7 @@ on:
       [
         "marketplace/**",
         "src/lib/dates.ts",
+        "src/lib/local-postgres.ts",
         "src/components/use-hydrated.ts",
         "package*.json",
         ".github/workflows/marketplace.yml",

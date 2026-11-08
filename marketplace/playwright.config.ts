@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import { localDatabase, localOrigin } from "./lib/config";
 process.loadEnvFile(".env.local");
+localDatabase(process.env.MARKETPLACE_DATABASE_URL, "marketplace_app");
+localDatabase(process.env.MARKETPLACE_AUTH_DATABASE_URL, "marketplace_auth");
+localOrigin();
 export default defineConfig({
   testDir: "tests/browser",
   workers: 1,
@@ -26,7 +30,7 @@ export default defineConfig({
   webServer: {
     command: "npm run start",
     url: "http://127.0.0.1:3100",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });

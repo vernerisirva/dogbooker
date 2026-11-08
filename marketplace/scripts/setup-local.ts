@@ -1,14 +1,8 @@
-import { Pool } from "pg";
 import { randomBytes } from "node:crypto";
 import { writeFile, access } from "node:fs/promises";
-import { userInfo } from "node:os";
+import { adminPool } from "./local-admin";
 // Fixed Unix socket and database names: this command cannot target a remote deployment.
-const admin = new Pool({
-  host: "/tmp/dogbooker-marketplace-pg",
-  port: 55438,
-  user: userInfo().username,
-  database: "postgres",
-});
+const admin = adminPool("postgres");
 try {
   try {
     await access(".env.local");

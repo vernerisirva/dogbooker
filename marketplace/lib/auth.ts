@@ -1,13 +1,7 @@
 import { betterAuth } from "better-auth";
-import { Pool } from "pg";
-import { localDatabase, localOrigin } from "./config";
-export const authPool = new Pool({
-  connectionString: localDatabase(
-    process.env.MARKETPLACE_AUTH_DATABASE_URL,
-    "marketplace_auth",
-  ),
-  max: 5,
-});
+import { localOrigin } from "./config";
+import { runtimePool } from "./connection";
+export const authPool = runtimePool("marketplace_auth", 5);
 export const auth = betterAuth({
   appName: "DogBooker Marketplace",
   baseURL: localOrigin(),

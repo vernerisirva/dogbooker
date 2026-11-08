@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
-// Preserve explicit environment overrides and support standard quoted/unquoted .env syntax.
-if (!process.env.BASE_URL) process.loadEnvFile(".env.local");
+import { testDatabaseConfig } from "./src/lib/test-database-config";
+if (process.env.BASE_URL)
+  throw new Error("Browser fixtures require their own local test server.");
+process.loadEnvFile(".env.local");
+testDatabaseConfig();
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
@@ -10,7 +13,7 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   use: {
-    baseURL: process.env.BASE_URL ?? "http://localhost:3000",
+    baseURL: "http://localhost:3000",
     locale: "sv-SE",
     timezoneId: "Europe/Stockholm",
     trace: "off",
@@ -28,12 +31,10 @@ export default defineConfig({
       },
     },
   ],
-  webServer: process.env.BASE_URL
-    ? undefined
-    : {
-        command: "npm run start",
-        url: "http://localhost:3000/login",
-        reuseExistingServer: false,
-        timeout: 120000,
-      },
+  webServer: {
+    command: "npm run start",
+    url: "http://localhost:3000/login",
+    reuseExistingServer: false,
+    timeout: 120000,
+  },
 });

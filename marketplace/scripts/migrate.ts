@@ -1,16 +1,7 @@
-import { Pool } from "pg";
-import { userInfo } from "node:os";
 import { readdir, readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-export function adminPool() {
-  return new Pool({
-    host: "/tmp/dogbooker-marketplace-pg",
-    port: 55438,
-    user: userInfo().username,
-    database: "dogbooker_marketplace",
-    max: 3,
-  });
-}
+import { adminPool } from "./local-admin";
+export { adminPool } from "./local-admin";
 export async function migrate() {
   const pool = adminPool();
   const c = await pool.connect();
